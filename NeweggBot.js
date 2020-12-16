@@ -13,6 +13,7 @@ var randomizedWaitCeiling = config.randomized_wait_ceiling? config.randomized_wa
 var prioritizationIncrement = config.prioritization_increment? config.prioritization_increment : 15;
 var prioritizationWindow = config.prioritization_window? config.prioritization_window : 2;
 var wasInPrioritzationMode = false;
+var cartPageStartDate;
 
 function getNextCheckTime(){
 	if (config.prioritize_increments) {
@@ -35,7 +36,7 @@ function getNextCheckTime(){
 				logger.info("Exiting prioritization mode")
 			}
 			wasInPrioritzationMode = false
-			var proposedRefreshTime = config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
+			var proposedRefreshTime = getRandomRefreshTime()
 			var timeUntilPrioritizationWindow = ((60-seconds) + 60*(prioritizationIncrement - timeSinceIncrement)) - (prioritizationWindow*60)
 			if(proposedRefreshTime >   timeUntilPrioritizationWindow)
 			{
@@ -52,9 +53,13 @@ function getNextCheckTime(){
 	}
 	else {
 		wasInPrioritzationMode = false
-		return config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
+		return getRandomRefreshTime()
 	}
 }
+
+function getRandomRefreshTime(){
+	return config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
+ }
 
 async function check_cart(page) {
 	await page.waitForTimeout(250)
@@ -88,9 +93,11 @@ async function check_cart(page) {
 		return true
 	} catch (err) {
 		logger.error(err.message)
-		var nextCheckInSeconds = getNextCheckTime()
-		logger.info(`The next attempt will be performed in ${nextCheckInSeconds} seconds`)
-		await page.waitForTimeout(nextCheckInSeconds * 1000)
+		var currentTime = new Date()
+		var nextCheckInSeconds = getNextCheckTime();
+		var nextCheckInMillis = (nextCheckInSeconds*1000) - (currentTime.getTime() - cartPageStartDate.getTime())
+		logger.info(`The next attempt will be performed in ${nextCheckInMillis} ms`)
+		await page.waitForTimeout(nextCheckInMillis)
 		return false
 	}
 }
@@ -144,6 +151,7 @@ async function run() {
 
 	while (true) {
 		try {
+			cartPageStartDate = new Date()
 			await page.goto('https://secure.newegg.com/Shopping/AddtoCart.aspx?Submit=ADD&ItemList=' + config.item_number, { waitUntil: 'networkidle0' })
 			if (page.url().includes("cart")) {
 				if (await check_cart(page)) {
