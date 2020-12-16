@@ -13,7 +13,6 @@ var randomizedWaitCeiling = config.randomized_wait_ceiling? config.randomized_wa
 var prioritizationIncrement = config.prioritization_increment? config.prioritization_increment : 15;
 var prioritizationWindow = config.prioritization_window? config.prioritization_window : 2;
 var wasInPrioritzationMode = false;
-var cartPageStartDate;
 
 function getNextCheckTime(){
 	if (config.prioritize_increments) {
@@ -61,7 +60,7 @@ function getRandomRefreshTime(){
 	return config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
  }
 
-async function check_cart(page) {
+async function check_cart(page, pageStartDate) {
 	await page.waitForTimeout(250)
 	const amountElementName = ".summary-content-total"
 	try {
@@ -95,7 +94,7 @@ async function check_cart(page) {
 		logger.error(err.message)
 		var currentTime = new Date()
 		var nextCheckInSeconds = getNextCheckTime();
-		var nextCheckInMillis = (nextCheckInSeconds*1000) - (currentTime.getTime() - cartPageStartDate.getTime())
+		var nextCheckInMillis = (nextCheckInSeconds*1000) - (currentTime.getTime() - pageStartDate.getTime())
 		logger.info(`The next attempt will be performed in ${nextCheckInMillis} ms`)
 		await page.waitForTimeout(nextCheckInMillis)
 		return false
@@ -151,15 +150,15 @@ async function run() {
 
 	while (true) {
 		try {
-			cartPageStartDate = new Date()
+			var cartPageStartDate = new Date()
 			await page.goto('https://secure.newegg.com/Shopping/AddtoCart.aspx?Submit=ADD&ItemList=' + config.item_number, { waitUntil: 'networkidle0' })
 			if (page.url().includes("cart")) {
-				if (await check_cart(page)) {
+				if (await check_cart(page, cartPageStartDate)) {
 					break
 				}
 			} else if (page.url().includes("ShoppingItem")) {
 				await page.goto('https://secure.newegg.com/Shopping/ShoppingCart.aspx', { waitUntil: 'load' })
-				if (await check_cart(page)) {
+				if (await check_cart(page, cartPageStartDate)) {
 					break
 				}
 			} else if (page.url().includes("areyouahuman")) {
