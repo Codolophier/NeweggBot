@@ -12,7 +12,10 @@
     "url": "git+https://github.com/Ataraksia/NeweggBot.git"
   },
   "author": "Ataraksia",
-  "contributors": ["Cololophier"],
+  "contributors": [
+    "Cololophier",
+	"Dwooll94"
+  ],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Ataraksia/NeweggBot/issues"
