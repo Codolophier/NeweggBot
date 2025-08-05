@@ -8,5 +8,8 @@
 	"price_limit":"800",
 	"over_price_limit_behavior": "stop",
 	"randomized_wait_ceiling": 11,
-	"browser_executable_path": "C:/Progra~2/Google/Chrome/Application/chrome.exe"
+	"browser_executable_path": "C:/Progra~2/Google/Chrome/Application/chrome.exe",
+	"prioritize_increments":true,
+	"prioritization_increment":15,
+	"prioritization_window":2
 }

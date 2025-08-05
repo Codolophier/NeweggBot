@@ -9,9 +9,58 @@ logger.level = "trace"
  * This value will set the ceiling on the random number of seconds to be added to the **refresh_time**.
  * To override the default value (11), set the randomized_wait_ceiling variable in the config.json.
  */ 
-var randomizedWaitCeiling = config.randomized_wait_ceiling | 11;
+var randomizedWaitCeiling = config.randomized_wait_ceiling? config.randomized_wait_ceiling:11;
+var prioritizationIncrement = config.prioritization_increment? config.prioritization_increment : 15;
+var prioritizationWindow = config.prioritization_window? config.prioritization_window : 2;
+var wasInPrioritzationMode = false;
 
-async function check_cart(page) {
+function getNextCheckTime(){
+	if (config.prioritize_increments) {
+		var date = new Date()
+		var minutes = date.getMinutes()
+		var seconds = date.getSeconds()
+		var timeSinceIncrement = minutes % prioritizationIncrement
+		//check if in prioritzation window
+		if(timeSinceIncrement < prioritizationWindow || prioritizationIncrement - timeSinceIncrement <= prioritizationWindow) {
+			//use non random refresh time in prioritization window
+			if(!wasInPrioritzationMode) {
+				logger.info("Entering prioritization mode")
+			}
+			wasInPrioritzationMode = true
+			return config.refresh_time
+		}
+		else{
+			//use random refresh time, unless it would get into the prioritization window, then use time until prioritization window.
+			if(wasInPrioritzationMode) {
+				logger.info("Exiting prioritization mode")
+			}
+			wasInPrioritzationMode = false
+			var proposedRefreshTime = getRandomRefreshTime()
+			var timeUntilPrioritizationWindow = ((60-seconds) + 60*(prioritizationIncrement - timeSinceIncrement)) - (prioritizationWindow*60)
+			if(proposedRefreshTime >   timeUntilPrioritizationWindow)
+			{
+				if(timeUntilPrioritizationWindow > config.refresh_time) {
+					return timeUntilPrioritizationWindow
+				}
+				else{
+					return config.refresh_time
+				}
+			}
+			return proposedRefreshTime
+			
+		}
+	}
+	else {
+		wasInPrioritzationMode = false
+		return getRandomRefreshTime()
+	}
+}
+
+function getRandomRefreshTime(){
+	return config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
+ }
+
+async function check_cart(page, pageStartDate) {
 	await page.waitForTimeout(250)
 	const amountElementName = ".summary-content-total"
 	try {
@@ -34,7 +83,7 @@ async function check_cart(page) {
 			}
 			if (config.over_price_limit_behavior === "stop") {
 				logger.error("Over Price Limit Behavior is 'stop'. Ending Newegg Shopping Bot process")
-				process.exit(0);
+				process.exit(0)
 			} else {
 				return false
 			}
@@ -43,9 +92,11 @@ async function check_cart(page) {
 		return true
 	} catch (err) {
 		logger.error(err.message)
-		var nextCheckInSeconds = config.refresh_time + Math.floor(Math.random() * Math.floor(randomizedWaitCeiling))
-		logger.info(`The next attempt will be performed in ${nextCheckInSeconds} seconds`)
-		await page.waitForTimeout(nextCheckInSeconds * 1000)
+		var currentTime = new Date()
+		var nextCheckInSeconds = getNextCheckTime();
+		var nextCheckInMillis = (nextCheckInSeconds*1000) - (currentTime.getTime() - pageStartDate.getTime())
+		logger.info(`The next attempt will be performed in ${nextCheckInMillis} ms`)
+		await page.waitForTimeout(nextCheckInMillis)
 		return false
 	}
 }
@@ -99,14 +150,15 @@ async function run() {
 
 	while (true) {
 		try {
+			var cartPageStartDate = new Date()
 			await page.goto('https://secure.newegg.com/Shopping/AddtoCart.aspx?Submit=ADD&ItemList=' + config.item_number, { waitUntil: 'networkidle0' })
 			if (page.url().includes("cart")) {
-				if (await check_cart(page)) {
+				if (await check_cart(page, cartPageStartDate)) {
 					break
 				}
 			} else if (page.url().includes("ShoppingItem")) {
 				await page.goto('https://secure.newegg.com/Shopping/ShoppingCart.aspx', { waitUntil: 'load' })
-				if (await check_cart(page)) {
+				if (await check_cart(page, cartPageStartDate)) {
 					break
 				}
 			} else if (page.url().includes("areyouahuman")) {

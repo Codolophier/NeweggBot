@@ -5,7 +5,7 @@ This bot is very much still in the early stages, and more than a little rough ar
 
 ## Installation
 You will require [Node.js 14](https://nodejs.org/en/) to run this.
-After installing via git or by downloading the code and extracting it, navigate to the folder where the files are located via powershell(or equivalent console) and run `npm install` command.  If you end up experiencing the error `Error: Could not find browser revision latest` when running, you may also need to run the command `PUPPETEER-PRODUCT=firefox npm i puppeteer`.
+After installing via git or by downloading the code and extracting it, navigate to the folder where the files are located via powershell(or equivalent console) and run `npm install` command.  If you end up experiencing the error `Error: Could not find browser revision latest` when running, you may also need to run the command `PUPPETEER_PRODUCT=firefox npm i puppeteer`.
 
 
 ## Configuration
@@ -18,6 +18,9 @@ Once that is finished, create a copy of config_template.json and name it config.
 - `over_price_limit_behavior` Defines the behavior for cases in which the cart total exceeds the specified `price_limit`. Currently, the only valid value is *"stop"*. This will instruct the bot to end the process when the cart is over the limit. The option was added as a string, as opposed to a boolean, to allow some flexibility for  other potential actions. 
 - `randomized_wait_ceiling` This value will set the ceiling on the random number of seconds to be added to the **refresh_time**. While not guaranteed, this should help to prevent - or at least delay - IP bans based on consistent traffic/timing. This should be specified as a number, rather than a string.
 - `browser_executable_path` This will set the path to the browser to be used by the bot. Depending on the browser selected, you *may* need to install additional packages.
+- `prioritize_increments` Setting this to true will enable the bot to ignore random wait times surrounding minutes that are multiples of a configured `prioritization increments`, making this bot more agressive with reloading when it's more likely newegg will put stock up. It is reccomended to have your clock set accurately on your machine to make this work the best.
+- `prioritization_increment` A number that the minutes in the hour will be compared to to see if it's near a multiple of this value. For example, setting this value to 15 will ignore random reload times around 0, 15, 30, and 45 minutes into an hour, setting it to 10 will ignore random reloads 0, 10, 20, 30, 40, and 50 minutes into an hour. It is highly reccomended to make this a number that 60 can be evenly divided by.
+- `prioritization_window` The number of minutes surrounding the `prioritization_increment`s to ignore random reload times, for example, a value of 3 here will have the bot in prioritization mode from X:57 to X:03 going towards the top of an hour with the same grouping around any multiples of the set `prioritization_increment`.
 
 ## Usage
 After installation and configuration, the bot can then be run by using either `node neweggbot.js` or the `npm start` script. 
